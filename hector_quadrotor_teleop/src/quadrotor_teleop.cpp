@@ -53,6 +53,7 @@ private:
 
   ros::NodeHandle node_handle_;
   ros::Subscriber joy_subscriber_;
+  ros::Subscriber drone_pose_subscriber_;
   ros::Publisher velocity_publisher_, attitude_publisher_, yawrate_publisher_, thrust_publisher_;
   ros::ServiceClient motor_enable_service_;
   boost::shared_ptr<LandingClient> landing_client_;
@@ -60,6 +61,7 @@ private:
   boost::shared_ptr<PoseClient> pose_client_;
 
   geometry_msgs::PoseStamped pose_;
+  geometry_msgs::PoseStamped drone_pose_;
   double yaw_;
 
   struct Axis
@@ -103,6 +105,21 @@ private:
   std::string base_link_frame_, base_stabilized_frame_, world_frame_;
 
 public:
+  void drone_pose_callback(const geometry_msgs::PoseStamped::ConstPtr& msg)
+  {
+
+    //ROS_ERROR("Updating drone position");
+
+    //ROS_ERROR("Hello %f, %f, %f",  msg->pose.position.x,  msg->pose.position.y,  msg->pose.position.z);
+    drone_pose_.pose.position.x = msg->pose.position.x;
+    drone_pose_.pose.position.y = msg->pose.position.y;
+    drone_pose_.pose.position.z = msg->pose.position.z;
+    drone_pose_.pose.orientation.x = msg->pose.orientation.x;
+    drone_pose_.pose.orientation.y = msg->pose.orientation.y;
+    drone_pose_.pose.orientation.z = msg->pose.orientation.z;
+    drone_pose_.pose.orientation.w = msg->pose.orientation.w;
+  }
+
   Teleop()
   {
     ros::NodeHandle private_nh("~");
@@ -131,6 +148,8 @@ public:
     robot_nh.param<std::string>("base_link_frame", base_link_frame_, "base_link");
     robot_nh.param<std::string>("world_frame", world_frame_, "world");
     robot_nh.param<std::string>("base_stabilized_frame", base_stabilized_frame_, "base_stabilized");
+
+    drone_pose_subscriber_ = node_handle_.subscribe<geometry_msgs::PoseStamped>("ground_truth_to_tf/pose", 1000, &Teleop::drone_pose_callback, this);
 
     if (control_mode == "attitude")
     {
@@ -233,6 +252,9 @@ public:
     {
       enableMotors(true);
     }
+
+
+    
   }
 
   void joyTwistCallback(const sensor_msgs::JoyConstPtr &joy)
@@ -296,6 +318,20 @@ public:
     if (getButton(joy, buttons_.stop))
     {
       landing_client_->sendGoalAndWait(hector_uav_msgs::LandingGoal(), ros::Duration(10.0), ros::Duration(10.0));
+    }
+    if (!getButton(joy, buttons_.go)) {
+      //pose_ = drone_pose_;
+      //ROS_ERROR("Updating drone position -----");
+
+      //ROS_ERROR("Hello %f, %f, %f",  drone_pose_.pose.position.x,  drone_pose_.pose.position.y,  drone_pose_.pose.position.z);
+
+      pose_.pose.position.x = drone_pose_.pose.position.x;
+      pose_.pose.position.y = drone_pose_.pose.position.y;
+      pose_.pose.position.z = drone_pose_.pose.position.z;
+      pose_.pose.orientation.x = drone_pose_.pose.orientation.x;
+      pose_.pose.orientation.y = drone_pose_.pose.orientation.y;
+      pose_.pose.orientation.z = drone_pose_.pose.orientation.z;
+      pose_.pose.orientation.w = drone_pose_.pose.orientation.w;
     }
   }
 
